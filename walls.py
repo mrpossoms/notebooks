@@ -8,7 +8,18 @@ r, c = 90, 122
 wall = np.zeros((r, c, 3))
 mask = np.zeros((r, c, 3))
 
-print(mask)
+remaining_board = [
+	0,
+	(144 * (4 * 2)) * 7,
+	(144 * (4 * 8)) * 2,
+]
+
+
+print(remaining_board)
+assert(remaining_board[1] + remaining_board[2] >= r * c)
+
+def area(piece):
+	return piece[0] * piece[1]
 
 def pieces():
 	pieces = [
@@ -26,23 +37,25 @@ def pieces():
 	return pieces
 
 def score(r, c, piece):
-	area = piece[0] * piece[1]
-	scr = 0#area
+	a = area(piece)
+	scr = max(1, remaining_board[piece[2]]) - a
 	other_piece = mask[r][c]
 
 	if other_piece is None:
-		return src + 2
+		return scr + 2
 
-	if (other_piece == piece).all():
-		scr -= 1
+	#if (other_piece == piece).all():
+	#	scr -= 1
+
+	scr += abs(area(other_piece) - a) + abs(other_piece[2] - piece[2]) * 1000
 
 	if (other_piece == rotate_piece(piece)).all():
 		scr += 1
 
-	if other_piece[2] != piece[2]:
-		scr += 1
+	#if other_piece[2] != piece[2]:
+	#	scr += 1
 
-	scr -= mask[r:r+piece[0], c:c+piece[1]].sum()
+	scr -= mask[r:r+piece[0], c:c+piece[1]].sum() 
 
 	return scr #np.random.randint(0, 5)
 
@@ -67,8 +80,9 @@ def rotate_piece(piece):
 
 def set_piece(r, c, piece):
 	wall[r:r+piece[0], c:c+piece[1]] = 0
-	wall[r+1:r+piece[0]-1, c+1:c+piece[1]-1] = [piece[2] * 32] * 3
+	wall[r+1:r+piece[0]-1, c+1:c+piece[1]-1] = [piece[2] * 64] * 3
 	mask[r:r+piece[0], c:c+piece[1]] = piece
+	remaining_board[piece[2]] -= area(piece)	
 
 for r in range(wall.shape[0]):
 	for c in range(wall.shape[1]):
@@ -79,3 +93,5 @@ for r in range(wall.shape[0]):
 		set_piece(r, c, select_piece(r, c))
 
 cv2.imwrite("walls.png", wall)
+
+print(remaining_board)
