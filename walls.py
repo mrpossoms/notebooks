@@ -11,6 +11,9 @@ r, c = 90, 122
 def area(piece):
 	return piece[0] * piece[1]
 
+def volume(piece):
+	return piece[0] * piece[1] * piece[2]
+
 def pieces():
 	pieces = [
 		(24, 16, 1),
@@ -27,17 +30,25 @@ def pieces():
 	return pieces
 
 def score(mask, remaining_board, r, c, piece):
-	a = area(piece)
+	a = volume(piece)
 	scr = min(1, remaining_board[piece[2]] - a)
 	other_piece = mask[r][c]
 
-	if scr < 0:
+	# penalize for overlapping space that contains pieces that have been set
+	scr += -mask[r:r+piece[0], c:c+piece[1]].sum()
+
+	# if scr < 0:
+	# 	return scr
+
+	scr += (abs(volume(other_piece) - a))
+
+	if (other_piece == np.array([0, 0, 0])).all():
 		return scr
 
-	if other_piece is None:
-		return scr
 
-	scr += abs(area(other_piece) - a) + (abs(other_piece[2] - piece[2]) * a)
+	 # + (abs(other_piece[2] - piece[2]) * 10000)
+
+
 	# scr += (abs(other_piece[2] - piece[2]) * a)
 
 	# if other_piece[2] == piece[2]:
@@ -45,14 +56,14 @@ def score(mask, remaining_board, r, c, piece):
 
 	# if this region already has pieces in it super demote
 	# piece that overlaps existing pieces
-	scr += -mask[r:r+piece[0], c:c+piece[1]].sum()
+
 
 	return scr #np.random.randint(0, 5)
 
 def select_piece(mask, remaining_board, r, c):
 	scores = {p:0 for p in pieces()}
 
-	if random.random() < 0.25:
+	if random.random() < 0.125:
 		for _ in range(3):
 			p = pieces()[0]
 			s = score(mask, remaining_board, r, c, p)
@@ -61,8 +72,11 @@ def select_piece(mask, remaining_board, r, c):
 
 	for ri in range(-1, 2):
 		for ci in range(-1,2):
+			print(f'{ri},{ci}: {mask[r + ri, c + ci]}')
 			for p in pieces():
-				scores[p] += score(mask, remaining_board, r + ri, c + ci, p)
+				s = score(mask, remaining_board, r + ri, c + ci, p)
+				print(f'\t{p}: {s}')
+				scores[p] += s
 
 	best = list(scores.keys())[0]
 	for p in pieces():
@@ -107,6 +121,9 @@ def generate(wall, mask, remaining_board):
 
 			placement_score += piece_score
 
+			# if len(placement) == 2:
+			# 	return 0, placement
+
 	placement_score -= len(placement)
 
 	return placement_score, placement
@@ -115,7 +132,7 @@ def generate(wall, mask, remaining_board):
 def generate_candidates():
 	candidates = collections.OrderedDict()
 
-	for _ in range(1):
+	for _ in range(10):
 		wall = np.zeros((r, c, 3))
 		mask = np.zeros((r, c, 3))
 
