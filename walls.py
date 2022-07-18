@@ -28,28 +28,36 @@ def pieces():
 
 def score(mask, remaining_board, r, c, piece):
 	a = area(piece)
-	scr = max(1, remaining_board[piece[2]] - a)
+	scr = min(1, remaining_board[piece[2]] - a)
 	other_piece = mask[r][c]
+
+	if scr < 0:
+		return scr
 
 	if other_piece is None:
 		return scr
 
-	scr += abs(area(other_piece) - a) + abs(other_piece[2] - piece[2]) * 1000
+	scr += abs(area(other_piece) - a) + (abs(other_piece[2] - piece[2]) * a)
+	# scr += (abs(other_piece[2] - piece[2]) * a)
 
-	if (other_piece == piece).all():
-		scr -= a
-
-	if other_piece[2] == piece[2]:
-		scr -= a / 2
+	# if other_piece[2] == piece[2]:
+	# 	scr -= a / 2
 
 	# if this region already has pieces in it super demote
 	# piece that overlaps existing pieces
-	scr -= mask[r:r+piece[0], c:c+piece[1]].sum()
+	scr += -mask[r:r+piece[0], c:c+piece[1]].sum()
 
 	return scr #np.random.randint(0, 5)
 
 def select_piece(mask, remaining_board, r, c):
 	scores = {p:0 for p in pieces()}
+
+	if random.random() < 0.25:
+		for _ in range(3):
+			p = pieces()[0]
+			s = score(mask, remaining_board, r, c, p)
+			if s > 0:
+				return s, p
 
 	for ri in range(-1, 2):
 		for ci in range(-1,2):
@@ -73,7 +81,7 @@ def set_piece(wall, mask, remaining_board, r, c, piece):
 	remaining_board[piece[2]] -= area(piece)	
 
 def generate(wall, mask, remaining_board):
-	score = 0
+	placement_score = 0
 	placement = {}
 
 	for r in range(wall.shape[0]):
@@ -82,7 +90,14 @@ def generate(wall, mask, remaining_board):
 			if mask[r,c][0] != 0 and mask[r,c][1] != 0:
 				continue
 
-			piece_score, piece = select_piece(mask, remaining_board, r, c)
+			piece_score, piece = None, None
+
+			if r == 0 and c == 0:
+				piece = pieces()[0]
+				piece_score = score(mask, remaining_board, r, c, piece)
+			else:
+				piece_score, piece = select_piece(mask, remaining_board, r, c)
+
 			set_piece(wall, mask, remaining_board, r, c, piece)
 
 			if piece in placement:
@@ -90,17 +105,17 @@ def generate(wall, mask, remaining_board):
 			else:
 				placement[piece] = 1
 
-			score += piece_score
+			placement_score += piece_score
 
-	score -= len(placement)
+	placement_score -= len(placement)
 
-	return score, placement
+	return placement_score, placement
 
 
 def generate_candidates():
 	candidates = collections.OrderedDict()
 
-	for _ in range(10):
+	for _ in range(1):
 		wall = np.zeros((r, c, 3))
 		mask = np.zeros((r, c, 3))
 
