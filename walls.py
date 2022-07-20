@@ -29,18 +29,30 @@ def pieces():
 	random.shuffle(pieces)
 	return pieces
 
-def score(mask, remaining_board, r, c, piece):
-	a = volume(piece)
-	scr = min(1, remaining_board[piece[2]] - a)
-	other_piece = mask[r][c]
+def score(mask, remaining_board, placement, my_loc, neighbor_loc, piece):
+	a = pow(volume(piece), 1/3)
+	scr = 0
+	neighbor_r, neighbor_c = neighbor_loc
+	my_r, my_c = my_loc
+	other_piece = mask[neighbor_loc[0]][neighbor_loc[1]]
+
+	# if we would run out of board using this piece then penelize infinitely
+	if remaining_board[piece[2]] - a < 0:
+		scr = float('-inf')
 
 	# penalize for overlapping space that contains pieces that have been set
-	scr += -mask[r:r+piece[0], c:c+piece[1]].sum()
+	scr += -mask[my_r:my_r+piece[0], my_c:my_c+piece[1]].sum()
 
-	# if scr < 0:
-	# 	return scr
+	# check how many times this piece has been used
+	occurances = 1
+	if piece in placement:
+		occurances = placement[piece]
 
-	scr += (abs(volume(other_piece) - a))
+	# promote pieces that have different volumes from neighboring pieces
+	scr += pow(abs(volume(other_piece) - a), 1/3) / occurances
+
+	if piece[2] != other_piece[2]:
+		scr *= 10
 
 	if (other_piece == np.array([0, 0, 0])).all():
 		return scr
@@ -60,21 +72,22 @@ def score(mask, remaining_board, r, c, piece):
 
 	return scr #np.random.randint(0, 5)
 
-def select_piece(mask, remaining_board, r, c):
+def select_piece(mask, remaining_board, placement, r, c):
 	scores = {p:0 for p in pieces()}
 
-	if random.random() < 0.125:
+	if random.random() < 0.0:
 		for _ in range(3):
 			p = pieces()[0]
-			s = score(mask, remaining_board, r, c, p)
+			s = score(mask, remaining_board, placement, (r, c), (r, c), p)
 			if s > 0:
 				return s, p
+		print('random select failed')
 
 	for ri in range(-1, 2):
 		for ci in range(-1,2):
 			print(f'{ri},{ci}: {mask[r + ri, c + ci]}')
 			for p in pieces():
-				s = score(mask, remaining_board, r + ri, c + ci, p)
+				s = score(mask, remaining_board, placement, (r, c), (r + ri, c + ci), p)
 				print(f'\t{p}: {s}')
 				scores[p] += s
 
@@ -100,7 +113,7 @@ def generate(wall, mask, remaining_board):
 
 	for r in range(wall.shape[0]):
 		for c in range(wall.shape[1]):
-			# print(mask[r,c])
+			# skip any cells that have already been set
 			if mask[r,c][0] != 0 and mask[r,c][1] != 0:
 				continue
 
@@ -108,9 +121,9 @@ def generate(wall, mask, remaining_board):
 
 			if r == 0 and c == 0:
 				piece = pieces()[0]
-				piece_score = score(mask, remaining_board, r, c, piece)
+				piece_score = score(mask, remaining_board, placement, (r, c), (r, c), piece)
 			else:
-				piece_score, piece = select_piece(mask, remaining_board, r, c)
+				piece_score, piece = select_piece(mask, remaining_board, placement, r, c)
 
 			set_piece(wall, mask, remaining_board, r, c, piece)
 
